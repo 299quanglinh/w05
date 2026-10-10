@@ -12,7 +12,7 @@ using namespace std;
 enum class DeviceStatus {
     Active,             // Đang hoạt động bình thường
     UnderMaintenance,   // Đang bảo trì
-    Retire              // Đã ngưng sử dụng / thanh lý
+    Retired              // Đã ngưng sử dụng / thanh lý
 };
 
 // ============================================================================
@@ -179,25 +179,17 @@ public:
     double calculateAnnualMaintenanceCost() const override {
         time_t now = time(nullptr);
         tm* currentTime = localtime(&now);
-
-        if (currentTime == nullptr) {
-            throw runtime_error(
-                "Khong lay duoc nam hien tai"
-            );
-        }
-
         int currentYear = currentTime->tm_year + 1900;
         int yearsUsed = currentYear - getYearPutIntoService();
 
-        if (hasDedicatedGPU && yearsUsed > 5) {
-            return getPurchasePrice() * 0.08;
+        double rate = 0.05;
+        if (yearsUsed > 5) {
+            rate += 0.01;
         }
-        else if (hasDedicatedGPU) {
-            return getPurchasePrice() * 0.07;
+        if (hasDedicatedGPU) {
+            rate += 0.02;
         }
-        else {
-            return getPurchasePrice() * 0.05;
-        }
+        return getPurchasePrice() * rate;
     }
 
     // --- Getters của Computer ---
@@ -236,15 +228,13 @@ class Printer : public Device, public INetworkable {
 private:
     PrinterType printerType;    // Loại máy in
     int pagesPrinted;           // Tổng số trang đã in
-    bool supportsNetwork;       // Có hỗ trợ kết nối mạng hay không
     bool isColor;               // Có phải máy in màu hay không
     string ipAddress;           // Địa chỉ IP đang hoạt động
     bool connected;             // Cờ trạng thái kết nối mạng
 
 public:
-    Printer(string id, string name, double price, int year, PrinterType type, int pages, bool network, bool color)
-        : Device(id, name, price, year), printerType(type), pagesPrinted(pages), 
-          supportsNetwork(network), isColor(color), ipAddress(""), connected(false) {
+    Printer(string id, string name, double price, int year, PrinterType type, int pages, bool color)
+        : Device(id, name, price, year), printerType(type), pagesPrinted(pages), isColor(color), ipAddress(""), connected(false) {
         if (pagesPrinted < 0) {
             throw invalid_argument("So trang da in khong hop le");
         }
@@ -252,13 +242,7 @@ public:
 
     // --- Triển khai các phương thức của Interface INetworkable cho Printer ---
 
-    // Kết nối mạng: Kiểm tra hỗ trợ mạng, địa chỉ IP không rỗng và chưa kết nối trước đó
     void Connect(string ipAddress) override {
-        // Kiểm tra xem máy in có hỗ trợ kết nối mạng hay không
-        if (!supportsNetwork) {
-            throw invalid_argument("May in khong ho tro ket noi mang");
-        }
-
         if (ipAddress.empty()) {
             throw invalid_argument(
                 "Dia chi IP khong duoc de trong"
@@ -407,7 +391,7 @@ public:
     }
 
     // Tìm kiếm thiết bị theo mã ID (trả về con trỏ Device* hoặc nullptr nếu không tìm thấy)
-    Device* FindDevice(string deviceId) {
+    Device* FindDevice(string deviceId) const {
         for (Device* device : devices) {
             if (device->getDeviceId() == deviceId) {
                 return device;
