@@ -3,6 +3,7 @@
 #include <string>
 #include <stdexcept>
 #include <ctime>
+#include <vector>
 using namespace std;
 
 // ============================================================================
@@ -383,108 +384,282 @@ public:
     }
 };
 
-#include <vector>
+// ============================================================================
+// CLASS: LabRoom (Quản lý phòng thực hành và danh sách các thiết bị trong phòng)
+// ============================================================================
+class LabRoom {
+private:
+    string roomId;              // Mã phòng thực hành
+    string roomName;            // Tên phòng thực hành
+    int capacity;               // Sức chứa (số lượng người tối đa)
+    vector<Device*> devices;    // Danh sách con trỏ quản lý các thiết bị trong phòng
 
+public:
+    // Constructor khởi tạo phòng thực hành có validation dữ liệu
+    LabRoom(string id, string name, int cap) 
+        : roomId(id), roomName(name), capacity(cap) {
+        if (roomId.empty()) {
+            throw invalid_argument("Ma phong khong duoc de trong");
+        }
+        if (capacity <= 0) {
+            throw invalid_argument("Suc chua phai lon hon 0");
+        }
+    }
+
+    // Tìm kiếm thiết bị theo mã ID (trả về con trỏ Device* hoặc nullptr nếu không tìm thấy)
+    Device* FindDevice(string deviceId) {
+        for (Device* device : devices) {
+            if (device->getDeviceId() == deviceId) {
+                return device;
+            }
+        }
+        return nullptr;
+    }
+
+    // Thêm thiết bị vào phòng (Kiểm tra con trỏ hợp lệ và không trùng mã thiết bị)
+    void AddDevice(Device* device) {
+        if (device == nullptr) {
+            throw invalid_argument("Thiet bi khong hop le");
+        }
+        if (FindDevice(device->getDeviceId()) != nullptr) {
+            throw invalid_argument("Ma thiet bi da ton tai trong phong");
+        }
+        devices.push_back(device);
+    }
+
+    // Xóa thiết bị khỏi phòng theo mã ID (Trả về true nếu xóa thành công, false nếu không tìm thấy)
+    bool RemoveDevice(string deviceId) {
+        for (auto it = devices.begin(); it != devices.end(); ++it) {
+            if ((*it)->getDeviceId() == deviceId) {
+                devices.erase(it);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Tính tổng chi phí bảo trì hàng năm của tất cả thiết bị trong phòng (sử dụng đa hình)
+    double CalculateAnnualMaintenanceCost() const {
+        double totalCost = 0;
+
+        for (Device* device : devices) {
+            totalCost += device->calculateAnnualMaintenanceCost();
+        }
+        return totalCost;
+    }
+
+    // Lọc và lấy danh sách các thiết bị cần bảo trì:
+    // - Thiết bị đang có trạng thái UnderMaintenance
+    // - Hoặc thiết bị đã đưa vào sử dụng trên 5 năm
+    vector<Device*> GetDevicesRequiringMaintenance() const {
+        vector<Device*> result;
+
+        time_t now = time(nullptr);
+        tm* currentTime = localtime(&now);
+        int currentYear = currentTime->tm_year + 1900;
+
+        for (Device* device : devices) {
+            int yearsUsed = currentYear - device->getYearPutIntoService();
+            if (device->getDeviceStatus() == DeviceStatus::UnderMaintenance
+                || yearsUsed > 5) {
+                result.push_back(device);
+            }
+        }
+        return result;
+    }
+
+    // --- Các phương thức Getter ---
+    string getRoomId() const {
+        return roomId;
+    }
+    string getRoomName() const {
+        return roomName;
+    }
+    int getCapacity() const {
+        return capacity;
+    }
+    int getDeviceCount() const {
+        return static_cast<int>(devices.size());
+    }
+};
+
+// ============================================================================
+// HÀM MAIN: CHƯƠNG TRÌNH KIỂM THỬ TOÀN DIỆN (TEST SUITE)
+// ============================================================================
 int main() {
-    cout << "==========================================================" << endl;
-    cout << "           CHUONG TRINH KIEM THU QUAN LY THIET BI         " << endl;
-    cout << "==========================================================\n" << endl;
-
-    // ========================================================================
-    // PHAN 1: KIEM THU DA HINH QUA LOP CO SO Device*
-    // ========================================================================
-    cout << ">>> [PHAN 1] Quan ly danh sach thiet bi da hinh qua Device* <<<\n" << endl;
-
-    Computer pc1("PC001", "PC Do hoa Lab 1", 25000000, 2020, 32, "Intel Core i7", true, false, "");
-    Printer pr1("PR001", "May in Van phong (Co mang)", 8000000, 2023, PrinterType::Laser, 120000, true, true);
-    Printer pr2("PR002", "May in Ca nhan (Khong mang)", 3000000, 2024, PrinterType::Inkjet, 20000, false, false);
-    Projector pj1("PJ001", "May chieu Hoi truong", 18000000, 2022, 4500, 3200);
-
-    vector<Device*> devices = { &pc1, &pr1, &pr2, &pj1 };
-
-    double totalMaintenanceCost = 0;
-    for (const auto& dev : devices) {
-        cout << dev->toString() << endl;
-        double cost = dev->calculateAnnualMaintenanceCost();
-        cout << "   -> Chi phi bao tri hang nam: " << to_string((long long)cost) << " VND\n" << endl;
-        totalMaintenanceCost += cost;
-    }
-    cout << "==> TONG CHI PHI BAO TRI: " << to_string((long long)totalMaintenanceCost) << " VND\n" << endl;
-
-    // ========================================================================
-    // PHAN 2: KIEM THU DA HINH QUA INTERFACE INetworkable*
-    // ========================================================================
-    cout << ">>> [PHAN 2] Quan ly cac thiet bi mang qua INetworkable* <<<\n" << endl;
-
-    vector<INetworkable*> networkDevices = { &pc1, &pr1 };
-
-    // 1. Ket noi mang dong loat
-    cout << "--- 1. Thuc hien ket noi mang ---" << endl;
-    pc1.Connect("192.168.1.101");
-    pr1.Connect("192.168.1.102");
-
-    // 2. Kiem tra thong tin qua con tro Interface
-    cout << "\n--- 2. Kiem tra trang thai qua con tro INetworkable* ---" << endl;
-    for (size_t i = 0; i < networkDevices.size(); ++i) {
-        cout << "Thiet bi [" << i + 1 << "]:"
-             << " IP = " << networkDevices[i]->getIpAddress()
-             << " | Da ket noi? " << (networkDevices[i]->IsConnected() ? "CO" : "KHONG") 
-             << endl;
-    }
-
-    // 3. Ngat ket noi va kiem tra IP da bi xoa hay chua
-    cout << "\n--- 3. Ngat ket noi mang ---" << endl;
-    for (auto* netDev : networkDevices) {
-        netDev->Disconnect();
-        cout << "Sau khi ngat: IP = \"" << netDev->getIpAddress() 
-             << "\" | Da ket noi? " << (netDev->IsConnected() ? "CO" : "KHONG") << endl;
-    }
-
-    // ========================================================================
-    // PHAN 3: KIEM THU CAC NGOAI LE (EXCEPTION HANDLING)
-    // ========================================================================
-    cout << "\n>>> [PHAN 3] Kiem thu cac ngoai le logic mang <<<\n" << endl;
-
-    // Ngoai le 1: Ket noi mang tren may in KHONG ho tro mang (pr2)
-    cout << "--- Test Ngoai le 1: May in khong ho tro mang (Mong doi loi) ---" << endl;
     try {
-        pr2.Connect("192.168.1.200");
-        cout << ">> THAT BAI: Khong nem ngoai le!" << endl;
-    } catch (const exception& e) {
-        cout << ">> THANH CONG bat loi: \"" << e.what() << "\"" << endl;
-    }
+        // --------------------------------------------------------------------
+        // Bước 1: Khởi tạo dữ liệu mẫu cho các thiết bị
+        // --------------------------------------------------------------------
+        // 1. Tạo 2 máy tính (pc1: card onboard thông thường; pc2: card đồ họa rời GPU)
+        Computer pc1(
+            "PC01", "May tinh van phong",
+            15000000, 2022,
+            16, "Intel Core i5", false,
+            false, ""
+        );
 
-    // Ngoai le 2: Ket noi voi IP rong
-    cout << "\n--- Test Ngoai le 2: Ket noi voi IP rong (Mong doi loi) ---" << endl;
-    try {
-        pc1.Connect("");
-        cout << ">> THAT BAI: Khong nem ngoai le!" << endl;
-    } catch (const exception& e) {
-        cout << ">> THANH CONG bat loi: \"" << e.what() << "\"" << endl;
-    }
+        Computer pc2(
+            "PC02", "May tinh do hoa",
+            30000000, 2020,
+            32, "Intel Core i7", true,
+            false, ""
+        );
 
-    // Ngoai le 3: Ket noi lai khi da dang ket noi
-    cout << "\n--- Test Ngoai le 3: Ket noi lai khi chua ngat (Mong doi loi) ---" << endl;
-    try {
-        pc1.Connect("192.168.1.101");
-        pc1.Connect("192.168.1.105"); // Thu ket noi de
-        cout << ">> THAT BAI: Khong nem ngoai le!" << endl;
-    } catch (const exception& e) {
-        cout << ">> THANH CONG bat loi: \"" << e.what() << "\"" << endl;
-    }
+        // 2. Tạo 2 máy in (printer1: máy in thường; printer2: máy in màu, in > 100.000 trang)
+        Printer printer1(
+            "PR01", "May in van phong",
+            5000000, 2023,
+            PrinterType::Laser, 50000, true, false
+        );
 
-    // Ngoai le 4: Ngat ket noi khi chua ket noi
-    cout << "\n--- Test Ngoai le 4: Ngat ket noi khi chua ket noi (Mong doi loi) ---" << endl;
-    try {
-        pr1.Disconnect(); // pr1 da ngat o Phan 2, thu ngat tiep
-        cout << ">> THAT BAI: Khong nem ngoai le!" << endl;
-    } catch (const exception& e) {
-        cout << ">> THANH CONG bat loi: \"" << e.what() << "\"" << endl;
-    }
+        Printer printer2(
+            "PR02", "May in kho",
+            8000000, 2020,
+            PrinterType::Laser, 150000, true, true
+        );
 
-    cout << "\n==========================================================" << endl;
-    cout << "                TAT CA TEST CASES HOAN TAT!               " << endl;
-    cout << "==========================================================" << endl;
+        // 3. Tạo máy chiếu (projector1: giờ hoạt động của bóng đèn > 3.000 giờ)
+        Projector projector1(
+            "PJ01", "May chieu phong hoc",
+            20000000, 2021,
+            4000, 3500
+        );
+
+        // 4. Tạo 2 phòng thực hành quản lý thiết bị
+        LabRoom room1("ROOM01", "Phong thuc hanh 1", 3);
+        LabRoom room2("ROOM02", "Phong thuc hanh 2", 3);
+
+        // --------------------------------------------------------------------
+        // Bước 2: Thêm thiết bị vào từng phòng thực hành (Kiểm thử AddDevice)
+        // --------------------------------------------------------------------
+        cout << "\n===== 1. THEM THIET BI =====\n";
+
+        room1.AddDevice(&pc1);
+        room1.AddDevice(&printer1);
+        room1.AddDevice(&projector1);
+
+        room2.AddDevice(&pc2);
+        room2.AddDevice(&printer2);
+
+        cout << "Da them thiet bi vao hai phong thanh cong.\n";
+
+        // --------------------------------------------------------------------
+        // Bước 3: Kiểm thử bắt lỗi khi thêm thiết bị trùng mã ID (Validation)
+        // --------------------------------------------------------------------
+        cout << "\n===== 2. KIEM TRA TRUNG MA =====\n";
+
+        Computer pcDuplicate(
+            "PC01", "May tinh trung ma",
+            12000000, 2024,
+            8, "Intel Core i3", false,
+            false, ""
+        );
+
+        try {
+            room1.AddDevice(&pcDuplicate); // PC01 đã tồn tại trong room1, mong đợi ném ngoại lệ
+        }
+        catch (const invalid_argument& e) {
+            cout << "Bat loi thanh cong: " << e.what() << '\n';
+        }
+
+        // --------------------------------------------------------------------
+        // Bước 4: Xuất thông tin chi tiết các thiết bị trong từng phòng (toString)
+        // --------------------------------------------------------------------
+        cout << "\n===== 3. DANH SACH THIET BI =====\n";
+
+        cout << "\n--- " << room1.getRoomName() << " ---\n";
+        cout << pc1.toString() << '\n';
+        cout << printer1.toString() << '\n';
+        cout << projector1.toString() << '\n';
+
+        cout << "\n--- " << room2.getRoomName() << " ---\n";
+        cout << pc2.toString() << '\n';
+        cout << printer2.toString() << '\n';
+
+        // --------------------------------------------------------------------
+        // Bước 5: Tính tổng chi phí bảo trì hàng năm mỗi phòng (Đa hình Device*)
+        // --------------------------------------------------------------------
+        cout << "\n===== 4. CHI PHI BAO TRI =====\n";
+
+        cout << room1.getRoomName() << ": "
+             << to_string((long long)room1.CalculateAnnualMaintenanceCost())
+             << " VND/nam\n";
+
+        cout << room2.getRoomName() << ": "
+             << to_string((long long)room2.CalculateAnnualMaintenanceCost())
+             << " VND/nam\n";
+
+        // --------------------------------------------------------------------
+        // Bước 6: Lọc và liệt kê danh sách thiết bị cần bảo dưỡng định kỳ
+        // --------------------------------------------------------------------
+        cout << "\n===== 5. THIET BI CAN BAO TRI =====\n";
+
+        cout << "\n--- " << room1.getRoomName() << " ---\n";
+        for (Device* device : room1.GetDevicesRequiringMaintenance()) {
+            cout << device->toString() << '\n';
+        }
+
+        cout << "\n--- " << room2.getRoomName() << " ---\n";
+        for (Device* device : room2.GetDevicesRequiringMaintenance()) {
+            cout << device->toString() << '\n';
+        }
+
+        // --------------------------------------------------------------------
+        // Bước 7: Kiểm thử kết nối mạng thông qua Interface INetworkable*
+        // --------------------------------------------------------------------
+        cout << "\n===== 6. KET NOI MANG =====\n";
+
+        vector<INetworkable*> networkDevices = {
+            &pc1, &pc2, &printer1, &printer2
+        };
+
+        vector<string> ipAddresses = {
+            "192.168.1.10",
+            "192.168.1.11",
+            "192.168.1.20",
+            "192.168.1.21"
+        };
+
+        // Thực hiện kết nối mạng đồng loạt cho các thiết bị
+        for (size_t i = 0; i < networkDevices.size(); ++i) {
+            try {
+                networkDevices[i]->Connect(ipAddresses[i]);
+            }
+            catch (const exception& e) {
+                cout << "Loi ket noi: " << e.what() << '\n';
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // Bước 8: Duyệt danh sách đa hình chỉ thông qua con trỏ INetworkable*
+        // --------------------------------------------------------------------
+        cout << "\n===== 7. DUYET THIET BI MANG =====\n";
+
+        for (INetworkable* device : networkDevices) {
+            cout << "IP: " << device->getIpAddress()
+                 << " | Trang thai: "
+                 << (device->IsConnected()
+                     ? "Dang ket noi"
+                     : "Chua ket noi")
+                 << '\n';
+        }
+
+        // --------------------------------------------------------------------
+        // Bước 9: Ngắt kết nối mạng an toàn và dọn dẹp
+        // --------------------------------------------------------------------
+        cout << "\n===== 8. NGAT KET NOI MANG =====\n";
+
+        for (INetworkable* device : networkDevices) {
+            if (device->IsConnected()) {
+                device->Disconnect();
+            }
+        }
+    }
+    catch (const exception& e) {
+        cerr << "Loi chuong trinh: " << e.what() << '\n';
+        return 1;
+    }
 
     return 0;
 }
