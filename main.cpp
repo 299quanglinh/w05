@@ -304,25 +304,30 @@ public:
         return cost;
     }
 
-    // --- Getters của Printer ---
+    
+    // Getters cua Printer
     PrinterType getPrinterType() const {
         return printerType;
     }
+
     int getPagesPrinted() const {
         return pagesPrinted;
     }
-    bool getSupportsNetwork() const {
-        return supportsNetwork;
-    }
+
     bool getIsColor() const {
         return isColor;
     }
 
-    // Mô tả thông tin máy in
+    // Mo ta thong tin may in
     string toString() const override {
-        string typeName = (printerType == PrinterType::Laser) ? "Laser" : "Phun";
-        return "Ma thiet bi: " + getDeviceId() + ", Loai may in: " + typeName + ", So trang da in: " + to_string(pagesPrinted) + ", Ho tro mang: " 
-        + (supportsNetwork ? "Co" : "Khong") + ", May in mau: " + (isColor ? "Co" : "Khong");
+        string typeName =
+            (printerType == PrinterType::Laser) ? "Laser" : "Phun";
+
+        return "Ma thiet bi: " + getDeviceId()
+            + ", Loai may in: " + typeName
+            + ", So trang da in: " + to_string(pagesPrinted)
+            + ", Ho tro mang: Co"
+            + ", May in mau: " + (isColor ? "Co" : "Khong");
     }
 };
 
@@ -493,17 +498,19 @@ int main() {
         );
 
         // 2. Tạo 2 máy in (printer1: máy in thường; printer2: máy in màu, in > 100.000 trang)
+        
         Printer printer1(
             "PR01", "May in van phong",
             5000000, 2023,
-            PrinterType::Laser, 50000, true, false
+            PrinterType::Laser, 50000, false
         );
 
         Printer printer2(
             "PR02", "May in kho",
             8000000, 2020,
-            PrinterType::Laser, 150000, true, true
+            PrinterType::Laser, 150000, true
         );
+
 
         // 3. Tạo máy chiếu (projector1: giờ hoạt động của bóng đèn > 3.000 giờ)
         Projector projector1(
